@@ -11,104 +11,115 @@ var _ = require('lodash');
 ;(function(window) {
   'use strict';
 
-  // Core tools
-  var _utils = {
-    contains: function(text, keyword) {
-      var kwd = new RegExp(keyword, 'gi'),
-        matches = text.match(keyword) || "";
+  /**
+    * Check how many times is present a given value.
+    *
+    * @param {string} string, The content we want to check.
+    * @param {string} keyword, The word we want to find.
+    * @returns {integer} Returns how many times is present. 
+    * @example
+    *
+    * contains("Marketing Services", "marketing");
+    * // => 1
+    *
+    * contains("Marketing Marketing", "marketing");
+    * // => 2
+    *
+    * TODO: check if both are strings.
+    */
+  function contains(str, keyword) {
+    str = str || "";
+    keyword = keyword || "";
 
-      return matches.length;
-    },
+    var kwd = new RegExp(keyword.toLowerCase(), 'gi'),
+      matches = str.toLowerCase().match(kwd) || "";
 
-    slugify: function(text) {
-      if (text) {
-        var slugified = text.toLowerCase().replace(/\s/g, '=');
+    return matches.length;
+  }
 
-        // Check if last char is '-', if it is then delete it 
-        if (slugified.substr(-1) === '-') {
-          slugified = slugified.substr(0, slugified.length -1);
-        }
+  /**
+    * Will transform "Something like this & this" into 
+    * "something-like-this-this".
+    *
+    * @param {string} str, Text we want to slugify.
+    * @returns {string} The text slugified.
+    * @exampple
+    *
+    * slugify("Hello World & You!");
+    * // => "hello-world-you"
+    */
+  function slugify(str) {
+    var from = 'àáäãâèéëêìíïîòóöôõùúüûñç·/_,:;',
+      to = 'aaaaaeeeeiiiiooooouuuunc------',
+      i = from.length;
 
-        return slugified;
-      } else {
-        throw "slugify: String needed to work";
-      }
+    while( --i >= 0 ) {
+      str = str.replace(new RegExp(from.charAt(i), 'gi'), to.charAt(i));
     }
-  };
 
-  // Tools related with keywords
-  var _keyword = {
-    firstWord: function(text, keyword) {
-      var firstWord = text.split(" ")[0],
-      result = _utils.contains(firstWord, keyword);
+    return str.replace(/^\s+|\s+$/g, '') //trim
+      .replace(/[^-a-zA-Z0-9\s]+/ig, '')
+      .replace(/\s/gi, "-")
+      .replace('---', '-')
+      .replace('--', '-')
+      .toLowerCase();
+  }
 
-      return result;
-    },
+  /**
+   * Keyword related functions
+   */
+  function keywordIsFirstWord(text, keyword) {
+    var firstWord = text.split(" ")[0],
+    result = contains(firstWord, keyword);
 
-    url: function(keyword) {
-      var url = location.href,          
-      kwd = _utils.slugify(keyword);
+    return result;
+  }
 
-      return _utils.contains(url, kwd);
-    },
+  function keywordIsInURL(keyword) {
+    var url = location.href,          
+    kwd = slugify(keyword);
 
-    h1: function(h1, keyword) {
-      return _utils.contains(h1, keyword);   
-    }
-  };
+    return contains(url, kwd);
+  }
 
+  function keywordIsInH1(h1, keyword) {
+    return contains(h1, keyword);   
+  }
+
+  /**
+   * Library Logic
+   */
   function define_library() {
     var lib = {};
 
-    // OnSite Logic
-    lib.check = function(xml, keyword) {
-      // function tryParseXML(xmlString) {
-      //   var parser = new DOMParser();
-      //   var parsererrorNS = parser.parseFromString('INVALID', 'text/xml').getElementsByTagName('parsererror')[0].namespaceURI;
-      //   var dom = parser.parseFromString(xmlString, 'text/xml');
-      //   if (dom.getElementsByTagNameNS(parsererrorNS, 'parsererror').length > 0) {
-      //     throw new Error('Error parsing XML');
-      //   }
-
-      //   return dom;
-      // }
-
-      // var parser = new DOMParser(),
-      //   doc = parser.parseFromString(xml, "application/xml"),
-      //   $dom = $(doc);
-
-      // var title = $dom.find('title').html();
-      // var body = $dom.find('body').html();
-
-      console.log("--");
-      window.$dom = xml;
-      console.log("--");
-
-      // console.log(lib.checkTitle(title, keyword));
-      // console.log(lib.checkSubHeadings(body, keyword));
-    }
-
-    // ## Social Media 
-    lib.checkTitle = function(title, keyword) {
-      // var result = {};
+    function seo(document, keyword) {
+      var title = document.title || "",
+        h1 = document.h1 || "",
+        body = document.body || "",
+        result;
 
       // Check if title tag exists if not, throw an error and
       // do nothing
       if (!title) {
         throw "[-] Title tag doesn't exist.";
       }
-      // Check if title includes the keyword
+      
+      /**
+       * Keyword related check 
+       */
+      // Check if keyword is included in the title 
       console.log("[*] Checking if keyword is in the title");
-      if (title.indexOf(keyword) > -1) {
+      if (contains(title, keyword)) {
         console.log("[+] Keyword found in the title");
       } else {
-        console.log("[+] Keyword missing in the title");
+        console.log("[-] Keyword missing in the title");
       }
 
       console.log("--");
 
+      // Check if the keyword is the first word of the title
       console.log("[*] Checking if keyword is the first word of the title");
-      if (_keyword.firstWord(title, keyword)) {
+      if (keywordIsFirstWord(title, keyword)) {
         console.log("[+] Keyword is the first word of the title");
       } else {
         console.log("[-] Keyword is not the first word of the title"); 
@@ -116,10 +127,9 @@ var _ = require('lodash');
 
       console.log("--");
 
-      // Checkingn title length
+      // Checking title length
       console.log("[*] Checking title length");
       var titleLenght = title.length || 0;
-
       if (titleLenght > 75) {
         console.log("[-] Title is greater than 75");
       } 
@@ -127,28 +137,67 @@ var _ = require('lodash');
       if (titleLenght > 3 && titleLenght < 75) {
         console.log("[+] Title is smaller than 75");
       }
-
-      console.log("--");
-
-      // return result;
-    }
-
-    lib.checkSubHeadings = function(subHeadings, keyword) {
-      var h1 = $(subHeadings).find('h1').html();
-      console.log(subHeadings);
-      console.log(h1);
-      console.log("--");
-
-      /*
-      // Check if keyword is in `h1`
-      console.log("[*] Checking if keyword is in the `h1` tag");
-      if (_keyword.h1(h1, keyword)) {
-      console.log("[+] Keyword is in the <h1> tag");
-      } else {
-      console.log("[-] Keyword is not in the <h1> tag");
+      
+      if (titleLenght < 3) {
+        console.log("[-] Your title is wrong, review it and fix it");
       }
-      */
+
+      console.log("--");
+
+      // Check if keyword is in the `h1`
+      console.log("[*] Checking if the keyword is in the `h1`");
+      if (contains(h1, keyword)) {
+        console.log("[+] Your keyword is in the `h1`");
+      } else {
+        console.log("[-] Your keyword is not in the `h1`");
+      }
+
+      console.log("--");
+
+      // Check if the keyword is at least two times in the content
+      console.log("[*] Checking if the keyword is at least two times in the content");
+      var $body = $(body),
+        $ps = $body.find('p'),
+        kwdsInP = 0;
+
+      $.each($ps, function(key, item) {
+        if (contains(item.innerHTML, keyword)) {
+          kwdsInP++;
+        } 
+      });
+
+      if (kwdsInP < 2) {
+        console.log("[-] Your keyword is less than two times in the body");
+      } 
+
+      if (kwdsInP === 2) {
+        console.log("[+] Your keyword is at least two times in the body");
+      }
+
+      if (kwdsInP > 2) {
+        console.log("[-] Your keyword is more than two times in the body");
+      }
+
+      return result;
     }
+
+    lib.check = function(html, keyword) {
+      var parser = new DOMParser(),
+        doc = parser.parseFromString(html, "text/html"),
+        $dom = $(doc);
+
+      var title = $dom.find('title').html(),
+        body = $dom.find('body').html(),
+        h1 = $dom.find('h1').eq(0).html();
+
+      var docObj = {
+        title: title,
+        body: body,
+        h1: h1
+      };
+      
+      console.log(seo(docObj, keyword));
+    };
 
     return lib;
   }
@@ -162,22 +211,15 @@ var _ = require('lodash');
 })(window);
 
 $.ajax({
-  url: "http://localhost:5000/v1/seo?url=http://woodlandsonline.com",
+  url: "http://localhost:5000/v1/seo?url=http://adwhite.com",
   type: "GET",
   dataType: "json",
   success: function(data) {
     var html = "";
 
     if (data) { 
-      html = data.seo.html.replace('/&(?!#?[a-z0-9]+;)/', '&amp;'); 
-
-      var parser = new DOMParser(),
-        doc = parser.parseFromString(html, "text/xml"),
-        $dom = $(doc);
-
-      window._dom = $dom;
-      console.log($dom);
-      OnSite.check($dom, "marketing");
+      html = data.seo.html; 
+      OnSite.check(html, "adwhite");
     }
   }
 });
