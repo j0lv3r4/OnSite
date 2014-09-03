@@ -1,5 +1,4 @@
 var $ = require('jquery');
-var _ = require('lodash');
 
 // ## Library result format 
 // `result.state` this is to show length, false, true or any state needed
@@ -7,8 +6,30 @@ var _ = require('lodash');
 // `result.recommendation` tell the user some recommendation
 // `result.icon` bad, normal or good
 
-;(function(window) {
+;(function(win, doc) {
   'use strict';
+
+  /**
+   * Check type of `el` and compare it to `type` 
+   *
+   * @param {object} object, Element to be checked ("Everything in JavaScript is an Object");
+   * @param {string} string, Name of the type we want to compare
+   * @returns {boolean} returns true of false if the Elements is equal to String
+   * @example
+   *
+   * isType([], "Array"); // true
+   * isType({}, "Object"); // true
+   * isType('', "String"); // true
+   * isType(new Date(), "Date"); // true
+   * isType(/test/i, "RegExp"); // true
+   * isType(function () {}, "Function"); // true
+   * isType(true, "Boolean"); // true
+   * isType(1, "Number"); // true
+   * isType(null, "Null"); // true
+   */
+  function isType(el, type) {
+      return Object.prototype.toString.call(el).slice(8, -1) === type;
+  }
 
   /**
     * Check how many times is present a given value.
@@ -24,7 +45,11 @@ var _ = require('lodash');
     * contains("Marketing Marketing", "marketing");
     * // => 2
     *
-    * TODO: check if both are strings.
+    * TODO: check if both are strings,
+    * also check which is better:
+    * if (str && isType(str, "String")) {};
+    * or
+    * str = str || "";
     */
   function contains(str, keyword) {
     str = str || "";
@@ -91,10 +116,11 @@ var _ = require('lodash');
   function define_library() {
     var lib = {};
 
-    function seo(document, keyword) {
-      var title = document.title || "",
-        h1 = document.h1 || "",
-        body = document.body || "",
+    function seo(html, keyword) {
+
+      var title = html.title || "",
+        h1 = html.h1 || "",
+        body = html.body || "",
         result;
 
       // Check if title tag exists if not, throw an error and
@@ -159,6 +185,7 @@ var _ = require('lodash');
         $ps = $body.find('p'),
         kwdsInP = 0;
 
+      // TODO: remove jQuery dependency on this function
       $.each($ps, function(key, item) {
         if (contains(item.innerHTML, keyword)) {
           kwdsInP++;
@@ -180,22 +207,26 @@ var _ = require('lodash');
       return result;
     }
 
-    lib.check = function(html, keyword) {
-      var parser = new DOMParser(),
-        doc = parser.parseFromString(html, "text/html"),
-        $dom = $(doc);
+    lib.check = function(options) {
+      options = options || {};
+        
+      if (options.hasOwnProperty('html')) {
+        var parser = new DOMParser(),
+          d = parser.parseFromString(options.html, "text/html"),
+          keyword = options.keyword || "",
+          title = d.getElementsByTagName('title') ? d.getElementsByTagName('title')[0].innerHTML : "",
+          body = d.getElementsByTagName('body') ? d.getElementsByTagName('body')[0].innerHTML : "",
+          h1 = d.getElementsByTagName('h1') ? d.getElementsByTagName('h1').innerHTML : "",
+          docObj = {
+          title: title,
+          body: body,
+          h1: h1
+        };
 
-      var title = $dom.find('title').html(),
-        body = $dom.find('body').html(),
-        h1 = $dom.find('h1').eq(0).html();
-
-      var docObj = {
-        title: title,
-        body: body,
-        h1: h1
-      };
-      
-      console.log(seo(docObj, keyword));
+        console.log(seo(docObj, keyword));
+      } else {
+        throw "HTML string not found"
+      }
     };
 
     return lib;
@@ -203,22 +234,27 @@ var _ = require('lodash');
 
   // define globally if it doesn't already exist
   if (typeof(lib) === 'undefined') {
-    window.OnSite = define_library(); 
+    win.OnSite = define_library(); 
   } else {
     console.error("Library already defined.");
   }
-})(window);
+})(window, document);
 
 $.ajax({
   url: "http://localhost:5000/v1/seo?url=http://adwhite.com",
   type: "GET",
   dataType: "json",
   success: function(data) {
-    var html = "";
+    console.log(data.seo.html);
 
     if (data) { 
-      html = data.seo.html; 
-      OnSite.check(html, "adwhite");
+      var options = {
+        html: data.seo.html,
+        keyword: "adWhite",
+        debug: true
+      };
+
+      OnSite.check(options);
     }
   }
 });
