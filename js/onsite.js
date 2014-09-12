@@ -9,6 +9,39 @@ var $ = require('jquery');
 ;(function(win, doc) {
   'use strict';
 
+	var utils = {
+		// https://github.com/james2doyle/saltjs
+		$: function(selector, context, undefined) {
+		  // an object containing the matching keys and native get commands
+			var matches = {
+				'#': 'getElementById',
+			  '.': 'getElementsByClassName',
+			  '@': 'getElementsByName',
+			  '=': 'getElementsByTagName',
+			  '*': 'querySelectorAll'
+			}[selector[0]]; // you can treat a string as an array of characters
+			// now pass the selector without the key/first character
+			var el = (((context === undefined) ? document: context)[matches](selector.slice(1)));
+			// if there is one element than return the 0 element
+			return ((el.length < 2) ? el[0]: el);
+		},
+
+		// http://toddmotto.com/simple-foreach-implementation-for-objects-nodelists-arrays-with-automatic-type-looping/
+		forEach: function(collection, callback, scope) {
+			if (Object.prototype.toString.call(collection) === '[object Object]') {
+				for (var prop in collection) {
+					if (Object.prototype.hasOwnProperty.call(collection, prop)) {
+						callback.call(scope, collection[prop], prop, collection);
+					}
+				}
+			} else {
+				for (var i = 0; i < collection.length; i++) {
+					callback.call(scope, collection[i], i, collection);
+				}
+			}
+		}
+	};
+
   /**
    * Check type of `el` and compare it to `type` 
    *
@@ -32,25 +65,25 @@ var $ = require('jquery');
   }
 
   /**
-    * Check how many times is present a given value.
-    *
-    * @param {string} string, The content we want to check.
-    * @param {string} keyword, The word we want to find.
-    * @returns {integer} Returns how many times is present. 
-    * @example
-    *
-    * contains("Marketing Services", "marketing");
-    * // => 1
-    *
-    * contains("Marketing Marketing", "marketing");
-    * // => 2
-    *
-    * TODO: check if both are strings,
-    * also check which is better:
-    * if (str && isType(str, "String")) {};
-    * or
-    * str = str || "";
-    */
+   * Check how many times is present a given value.
+   *
+   * @param {string} string, The content we want to check.
+   * @param {string} keyword, The word we want to find.
+   * @returns {integer} Returns how many times is present. 
+   * @example
+   *
+   * contains("Marketing Services", "marketing");
+   * // => 1
+   *
+   * contains("Marketing Marketing", "marketing");
+   * // => 2
+   *
+   * TODO: check if both are strings,
+   * also check which is better:
+   * if (str && isType(str, "String")) {};
+   * or
+   * str = str || "";
+   */
   function contains(str, keyword) {
     str = str || "";
     keyword = keyword || "";
@@ -121,6 +154,7 @@ var $ = require('jquery');
       var title = html.title || "",
         h1 = html.h1 || "",
         body = html.body || "",
+				ps = html.ps || "",
         result;
 
       // Check if title tag exists if not, throw an error and
@@ -132,6 +166,7 @@ var $ = require('jquery');
       /**
        * Keyword related check 
        */
+
       // Check if keyword is included in the title 
       console.log("[*] Checking if keyword is in the title");
       if (contains(title, keyword)) {
@@ -181,16 +216,20 @@ var $ = require('jquery');
 
       // Check if the keyword is at least two times in the content
       console.log("[*] Checking if the keyword is at least two times in the content");
-      var $body = $(body),
-        $ps = $body.find('p'),
-        kwdsInP = 0;
 
-      // TODO: remove jQuery dependency on this function
-      $.each($ps, function(key, item) {
-        if (contains(item.innerHTML, keyword)) {
-          kwdsInP++;
-        } 
-      });
+			// get all the `<p>` tags inside the website
+			var kwdsInP = 0;
+
+			console.log(ps);
+
+			utils.forEach(ps, function(value, prop, obj) {
+				if (contains(value.innerHTML, keyword)) {
+					kwdsInP++;
+				}
+			});
+
+			console.log("keyword in body: " + kwdsInP);
+			console.log(ps);
 
       if (kwdsInP < 2) {
         console.log("[-] Your keyword is less than two times in the body");
@@ -210,6 +249,7 @@ var $ = require('jquery');
     lib.check = function(options) {
       options = options || {};
         
+			// html parser function
       if (options.hasOwnProperty('html')) {
         var parser = new DOMParser(),
           d = parser.parseFromString(options.html, "text/html"),
@@ -217,10 +257,13 @@ var $ = require('jquery');
           title = d.getElementsByTagName('title') ? d.getElementsByTagName('title')[0].innerHTML : "",
           body = d.getElementsByTagName('body') ? d.getElementsByTagName('body')[0].innerHTML : "",
           h1 = d.getElementsByTagName('h1') ? d.getElementsByTagName('h1').innerHTML : "",
+					ps = d.getElementsByTagName('p') || "",
+					imgs = d.getElementsByTagName('img') || "",
           docObj = {
           title: title,
           body: body,
-          h1: h1
+          h1: h1,
+					ps: ps
         };
 
         console.log(seo(docObj, keyword));
@@ -240,12 +283,14 @@ var $ = require('jquery');
   }
 })(window, document);
 
+var url = "http://hidden-taiga-3220.herokuapp.com";
+// var url = "http://hidden-taiga-3220.herokuapp.com";
+
 $.ajax({
-  url: "http://localhost:5000/v1/seo?url=http://adwhite.com",
+  url: url + "/v1/seo?url=http://adwhite.com",
   type: "GET",
   dataType: "json",
   success: function(data) {
-    console.log(data.seo.html);
 
     if (data) { 
       var options = {
